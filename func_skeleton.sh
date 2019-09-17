@@ -40,10 +40,10 @@ function func_skeleton () {
         
         # removr temporary files and directories
         if [ ${#tmpfiles} -gt 0 ]; then
-            rm -f ${tmpfiles[@]}
+            rm -f "${tmpfiles[@]}"
         fi
         if [ ${#tmpdirs} -gt 0 ]; then
-            rm -rf ${tmpdirs[@]}
+            rm -rf "${tmpdirs[@]}"
         fi
 
         # Restore  signal handler
@@ -108,5 +108,5 @@ function func_skeleton () {
 }
 
 if [ "$0" == ${BASH_SOURCE:-$0} ]; then
-    func_skeleton $*
+    func_skeleton "$@"
 fi
