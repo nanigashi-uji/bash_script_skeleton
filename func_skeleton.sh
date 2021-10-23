@@ -24,6 +24,7 @@ function func_skeleton () {
         echo "           -d path   : Set destenation "          1>&2
         echo "           -h        : Show Help (this message)"  1>&2
         return
+        :
     }
 
     local hndlrhup_bk=$(trap -p SIGHUP)
@@ -55,10 +56,11 @@ function func_skeleton () {
         # Restore alias and functions
 
         unset echo_usage
-        test -n "${echo_usage_bk}" && eval ${echo_usage_bk%\}}" ; }"
+        test -n "${echo_usage_bk}" &&  { local echo_usage_bk="${echo_usage_bk%\}}"' \\; }'; eval "${echo_usage_bk//\; : \}/\; : \; \}}"  ; }
 
         unset cleanup
-        test -n "${cleanup_bk}" && eval ${cleanup_bk%\}}" ; }"
+        test -n "${cleanup_bk}" && { local cleanup_bk="${cleanup_bk%\}}"' \\; }'; eval "${cleanup_bk//\; : \}/\; : \; \}}"  ; }
+        :
     }
 
     # Analyze command line options
@@ -105,6 +107,7 @@ function func_skeleton () {
     # clean up 
     cleanup
     return ${funcstatus}
+    :
 }
 
 if [ "$0" == ${BASH_SOURCE:-$0} ]; then
