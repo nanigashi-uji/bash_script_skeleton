@@ -8,7 +8,7 @@
 
 if [ "$0" != "${BASH_SOURCE:-$0}" ]; then
     func_skeleton_bk="$(declare -f func_skeleton)"
-    undef_func_skeleton="$(declare -f func_skeleton)"
+    undef_func_skeleton_bk="$(declare -f undef_func_skeleton)"
 fi
 
 function func_skeleton () {
