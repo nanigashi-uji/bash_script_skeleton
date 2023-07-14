@@ -132,6 +132,7 @@ else
         test -n "${undef_func_skeleton_bk}" \
             && { local undef_func_skeleton_bk="${undef_func_skeleton_bk%\}}"' \\; }'; \
                  eval "${undef_func_skeleton_bk//\; : \}/\; : \; \}}"  ; }
+        :
     }
     return
 fi
