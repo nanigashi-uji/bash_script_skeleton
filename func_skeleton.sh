@@ -7,8 +7,48 @@
 #
 
 if [ "$0" != "${BASH_SOURCE:-$0}" ]; then
-    func_skeleton_bk="$(declare -f func_skeleton)"
-    undef_func_skeleton_bk="$(declare -f undef_func_skeleton)"
+    __func_skeleton_bk__="$(declare -f func_skeleton)"
+    __undef_func_skeleton_bk__="$(declare -f undef_func_skeleton)"
+
+    which_source_bk="$(declare -f which_source)"
+    function which_source () {
+        local _arg="$@"
+        if [[ "${_arg}" == / ]] ; then
+            if which -s "${REALPATH:-realpath}" ; then
+                "${REALPATH:-realpath}" "${_arg}"
+            elif which -s grealpath ; then
+                grealpath "${_arg}"
+            else
+                local _argdir="$(dirname "${_arg}")"
+                local _adir="$(cd "${_argdir}" 2>/dev/null && pwd -L || echo "${_argdir}")"
+                echo "${_adir%/}/${_arg##*/}"
+            fi
+        fi
+        local _seekpath=
+        shopt -q sourcepath          && local _seekpath="${_seekpath}${_seekpath:+:}${PATH}"
+        test -z "${POSIXLY_CORRECT}" && local _seekpath="${_seekpath}${_seekpath:+:}${PWD}"
+        local _scriptpath=
+        local IFS=':'
+        local _i=
+        for _i in ${_seekpath}; do
+            local _fp="${_i%/}/${_arg##*/}"
+            if [ -f "${_fp}" ]; then
+                local _scriptpath="${_fp}"
+                break
+            fi
+        done
+        echo "${_scriptpath}"
+        return
+        :
+    }
+
+    __func_skeleton_location__="$(which_source "${BASH_SOURCE:-$0}")"
+
+    unset which_source
+    test -n "${which_source_bk}" \
+        &&  { local which_source_bk="${which_source_bk%\}}"' \\; }'; \
+              eval "${which_source_bk//\; : \}/\; : \; \}}" ; }
+
 fi
 
 function func_skeleton () {
@@ -120,18 +160,33 @@ function func_skeleton () {
 }
 
 if [ "$0" == "${BASH_SOURCE:-$0}" ]; then
-    func_skeleton "$@"
-    exit $?
+    # func_skeleton "$@"
+    # exit $?
+    # Invoked by command
+    _runas="${0##*/}"
+    if declare -F "${_runas%.sh}" 1>/dev/null 2>&1 ;  then
+        "${_runas%.sh}" "$@"
+        __status=$?
+    fi
+    unset _runas
+    trap "unset __status" EXIT
+    exit ${__status:-1}
 else
     function undef_func_skeleton () {
+
         unset func_skeleton
-        test -n "${func_skeleton_bk}" \
-            &&  { local func_skeleton_bk="${func_skeleton_bk%\}}"' \\; }'; \
-                  eval "${func_skeleton_bk//\; : \}/\; : \; \}}"  ; }
+        test -n "${__func_skeleton_bk__}" \
+            &&  { local __func_skeleton_bk__="${__func_skeleton_bk__%\}}"' \\; }'; \
+                  eval "${__func_skeleton_bk__//\; : \}/\; : \; \}}"  ; }
         unset undef_func_skeleton
-        test -n "${undef_func_skeleton_bk}" \
-            && { local undef_func_skeleton_bk="${undef_func_skeleton_bk%\}}"' \\; }'; \
-                 eval "${undef_func_skeleton_bk//\; : \}/\; : \; \}}"  ; }
+        test -n "${__undef_func_skeleton_bk__}" \
+            && { local __undef_func_skeleton_bk__="${__undef_func_skeleton_bk__%\}}"' \\; }'; \
+                 eval "${__undef_func_skeleton_bk__//\; : \}/\; : \; \}}"  ; }
+
+        unset __func_skeleton_location__
+        unset __func_skeleton_bk__ __undef_func_skeleton_bk__
+
+        return
         :
     }
     return
