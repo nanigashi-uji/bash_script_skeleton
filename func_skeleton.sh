@@ -48,6 +48,7 @@ if [ "$0" != "${BASH_SOURCE:-$0}" ]; then
     test -n "${which_source_bk}" \
         &&  { local which_source_bk="${which_source_bk%\}}"' \\; }'; \
               eval "${which_source_bk//\; : \}/\; : \; \}}" ; }
+    unset which_source_bk
 
 fi
 
