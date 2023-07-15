@@ -13,10 +13,12 @@ fi
 
 function which_source () {
     # Description
-    local desc="Template of shell script without side effect for 'source'"
+    local desc="Locate a script file for bash 'source' in the user's path"
+    
     # Prepare Help Messages
     local funcstatus=0
     local echo_usage_bk="$(declare -f echo_usage)"
+    local realpath_sh_bk="$(declare -f realpath_sh)"
     local cleanup_bk="$(declare -f cleanup)"
     local tmpfiles=()
     local tmpdirs=()
@@ -30,11 +32,36 @@ function which_source () {
         echo "[Usage] % $(basename ${this}) options"            1>&2
         echo "    ---- ${desc}"                                 1>&2
         echo "[Options]"                                        1>&2
-        echo "           -d path   : Set destenation "          1>&2
-        echo "           -h        : Show Help (this message)"  1>&2
+        echo "  -a : List all instances of executables found (instead of just the first one of each)."          1>&2
+        echo "  -s : No output, just return 0 if all of the executables are found, or 1 if some were not found."  1>&2
+        echo "  -h : Help (Show this message)"
         return
         :
     }
+
+    function realpath_sh () {
+        local _i _s=0
+        for _i in "$@"; do
+            local _idir="$(dirname "${_i}")"
+            local _p="$(cd "${_idir}" 2>/dev/null && pwd || echo "${_idir}")"
+            local _pth="${_idir%/}/${_i##*/}"
+            echo "${_pth}"
+            if [ -f "${_pth}" ]; then
+                _s=1
+            fi
+        done
+        return ${_s}
+        :
+    }
+
+    
+    if "${WHICH:-which}" -s "${REALPATH:-realpath}" ; then
+        local realpath_cmd="${REALPATH:-realpath}"
+    elif which -s grealpath ; then
+        local realpath_cmd="grealpath"
+    else
+        local realpath_cmd="realpath_sh"
+    fi
 
     local hndlrhup_bk="$(trap -p SIGHUP)"
     local hndlrint_bk="$(trap -p SIGINT)"
@@ -67,6 +94,9 @@ function which_source () {
         unset echo_usage
         test -n "${echo_usage_bk}" &&  { local echo_usage_bk="${echo_usage_bk%\}}"' \\; }'; eval "${echo_usage_bk//\; : \}/\; : \; \}}"  ; }
 
+        unset realpath_sh
+        test -n "${realpath_sh_bk}" &&  { local realpath_sh_bk="${realpath_sh_bk%\}}"' \\; }'; eval "${realpath_sh_bk//\; : \}/\; : \; \}}"  ; }
+
         unset cleanup
         test -n "${cleanup_bk}" && { local cleanup_bk="${cleanup_bk%\}}"' \\; }'; eval "${cleanup_bk//\; : \}/\; : \; \}}"  ; }
         :
@@ -76,20 +106,14 @@ function which_source () {
     local OPT=""
     local OPTARG=""
     local OPTIND=""
-    local dest="" 
-    while getopts "d:h" OPT
-    do
+    local opt_statusonly=0
+    local opt_showall=0
+    while getopts "ash" OPT ; do
         case ${OPT} in
-            d) local dest="${OPTARG}"
-               ;;
-            h) echo_usage
-               cleanup
-               return 0
-               ;;
-            \?) echo_usage
-                cleanup
-                return 1
-                ;;
+            a)  local opt_showall=1 ;;
+            s)  local opt_statusonly=1 ;;
+            h)  echo_usage ; cleanup ; return 0 ;;
+            \?) echo_usage ; cleanup ; return 1 ;;
         esac
     done
     shift $((OPTIND - 1))
@@ -102,17 +126,44 @@ function which_source () {
         local this="${FUNCNAME[0]}"
     fi
 
-    local tmpdir0=$(mktemp -d "${this}.tmp.XXXXXX" )
-    local tmpdirs=( "${tmpdirs[@]}" "${tmpdir0}" )
-    local tmpfile0=$(mktemp   "${this}.tmp.XXXXXX" )
-    local tmpfiles=( "${tmpfiles[@]}" "${tmpfile0}" )
+    #local tmpdir0=$(mktemp -d "${this}.tmp.XXXXXX" )
+    #local tmpdirs=( "${tmpdirs[@]}" "${tmpdir0}" )
+    #local tmpfile0=$(mktemp   "${this}.tmp.XXXXXX" )
+    #local tmpfiles=( "${tmpfiles[@]}" "${tmpfile0}" )
 
-    echo "------------------------------"
-    echo "called as ${this}"
-    echo "ARGS:" $*
-    echo "------------------------------"
-    echo_usage 0
-
+    local _arg
+    for _arg in "$@"; do
+        local _is=0
+        if [[ "${_arg}" == / ]] ; then
+            if [ ${opt_statusonly:-0} -ne 0 ]; then
+                "${realpath_cmd}" "${_arg}" 1>/dev/null 2>&1 || local is=1
+            else
+                "${realpath_cmd}" "${_arg}"                  || local is=1
+            fi
+        else
+            local is=1 _seekpath=
+            shopt -q sourcepath          && local _seekpath="${_seekpath}${_seekpath:+:}${PATH}"
+            test -z "${POSIXLY_CORRECT}" && local _seekpath="${_seekpath}${_seekpath:+:}${PWD}"
+            local oldIFS="${IFS}" _scriptpath= _i=
+            local IFS=':'
+            for _i in ${_seekpath}; do
+                local _fp="${_i%/}/${_arg##*/}"
+                if [ -f "${_fp}" ]; then
+                    local _scriptpath="${_fp}"
+                    if [ ${opt_statusonly:-0} -eq 0 ]; then
+                        echo "${_scriptpath}"
+                    fi
+                    local is=0
+                    if [ ${opt_statusonly:-0} -eq 0 ]; then
+                        break
+                    fi
+                fi
+            done
+        fi
+        if [ ${_is:-1} -ne 0 ]; then
+            local funcstatus=1
+        fi
+    done
     # clean up 
     cleanup
     return ${funcstatus}
